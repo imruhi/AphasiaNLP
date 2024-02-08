@@ -139,10 +139,14 @@ def preprocess_line(utterance, mask_pauses, remove_repetitions, remove_masks):
     # TODO: (th) them -> them or -> th them
     special_characters = ['(.)', '[/]', '[//]', '‡', 'xxx', '+< ', '„', '+', '"" /..""', '+"/.', '+"', '+/?', '+//.',
                           '+//?', '[]', '<>', '_', '-', '^', ':', 'www .', '*PAR', '+/', '@o', '<', '>',
-                          '//..', '//', '/..', '/', '"', 'ʌ', '..?', '0.', '0 .', '"" /.', ')', '(', "@u", "@si", "@k"]
+                          '//..', '//', '/..', '/', '"', 'ʌ', '..?', '0.', '0 .', '"" /.', ')', '(', "@u", "@si", "@k",
+                          "@n", "$n", "$co", "$adj", "$on", "$v", "@l", 'æ', 'é', 'ð', 'ü', 'ŋ', 'ɑ', 'ɒ', 'ɔ', 'ə',
+                          'ɚ', 'ɛ', 'ɜ', 'ɝ', 'ɡ', 'ɪ', 'ɹ', 'ɾ', 'ʃ', 'ʊ', 'ʒ', 'ʔ', 'ʤ', 'ʧ', 'ː', '˞', '͡', 'θ', "@q",
+                          "@sspa", "@i", "@wp", "@sjpn", "@sdeu", "@p", "@sfra"]
 
     # Remove remaining special chars
     for special_character in special_characters:
+
         # EDITED: for words such as you_know and of_course
         if special_character == '_':
             utterance = utterance.replace(special_character, " ")
@@ -173,6 +177,12 @@ def preprocess_line(utterance, mask_pauses, remove_repetitions, remove_masks):
     utterance = re.sub(' +', ' ', utterance) # Remove final whitespaces (e.g. double space)
     # EDITED: remove trailing whitespaces before punctuation
     utterance = re.sub(r'\s+([?.!"])', r'\1', utterance)
+
+    # Remove anything between [ and ]
+    r = re.findall(r"\[(.*?)\]", utterance)
+    for regex in r:
+        utterance = utterance.replace(regex, "")
+
     return utterance
 
 
@@ -195,11 +205,11 @@ def preprocess_dataset(input_dataset_filename, mask_pauses, remove_repetitions, 
     # Not selected scenarios: "Cinderella_Intro", "Sandwich_Intro", "Important_Event_Intro", "Repetition", "BNT",
     # "Sandwich_Other","Sandwich_Picture", "VNT"
     selected_scenarios = ["Important_Event", "Speech", "Stroke", "Cinderella", "Sandwich", "Window", "Cat", "Umbrella",
-                          "Flood"] # "Cinderella_Intro", "Sandwich_Intro", "Important_Event_Intro", "Repetition", "BNT",
-                          # "Sandwich_Other", "Sandwich_Picture", "VNT"]
+                          "Flood", "Cinderella_Intro", "Sandwich_Intro", "Important_Event_Intro", "Repetition", "BNT",
+                          "Sandwich_Other", "Sandwich_Picture", "VNT"]
 
     df = df[df.scenario.isin(selected_scenarios)]
-    df = df.loc[(df['line_information'] == "*PAR")]
+    df = df.loc[(df['line_information'] == "*PAR")] # get only participants
 
     preprocessed_text = []
     for text in df['text']:
@@ -214,9 +224,9 @@ def preprocess_dataset(input_dataset_filename, mask_pauses, remove_repetitions, 
 if __name__ == "__main__":
 
     preprocessed_df = preprocess_dataset("data_broca.csv", True, False, True)
-    df_control = make_sentences_df(preprocessed_df)
-    df_control.to_csv("data_broca_preprocessed.csv")
+    df = make_sentences_df(preprocessed_df)
+    df.to_csv("data_broca_preprocessed.csv")
 
     preprocessed_df = preprocess_dataset("data_control.csv", True, False, True)
-    df_control = make_sentences_df(preprocessed_df)
-    df_control.to_csv("data_control_preprocessed.csv")
+    df = make_sentences_df(preprocessed_df)
+    df.to_csv("data_control_preprocessed.csv")
