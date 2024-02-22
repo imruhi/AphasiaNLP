@@ -6,6 +6,14 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
+# TODO: (th) them -> them or -> th them
+special_characters = ['(.)', '[/]', '[//]', '‡', 'xxx', '+< ', '„', '+', '"" /..""', '+"/.', '+"', '+/?', '+//.',
+                        '+//?', '[]', '<>', '_', '-', '^', ':', 'www .', '*PAR', '+/', '@o', '<', '>',
+                        '//..', '//', '/..', '/', '"', 'ʌ', '..?', '0.', '0 .', '"" /.', ')', '(', "@u", "@si", "@k",
+                        "@n", "$n", "$co", "$adj", "$on", "$v", "@l", 'æ', 'é', 'ð', 'ü', 'ŋ', 'ɑ', 'ɒ', 'ɔ', 'ə',
+                        'ɚ', 'ɛ', 'ɜ', 'ɝ', 'ɡ', 'ɪ', 'ɹ', 'ɾ', 'ʃ', 'ʊ', 'ʒ', 'ʔ', 'ʤ', 'ʧ', 'ː', '˞', '͡', 'θ', "@q",
+                        "@sspa", "@i", "@wp", "@sjpn", "@sdeu", "@p", "@sfra"]
+
 def contains_whitespace(string):
     """
     Check if string contains whitespace.
@@ -83,12 +91,28 @@ def preprocess_line(utterance, mask_pauses, remove_repetitions, remove_masks):
     :return:
     """
     expanded_words = []
-    for word in utterance.split():
+    # for word in utterance.split():
         # using contractions.fix --> he's --> he is
-        x = contractions.fix(word)
+        # x = contractions.fix(word)
         # EDITED: make sure @you is not included since @u means babbling
-        expanded_words.append(x.replace("@you", "@u"))
-    utterance = ' '.join(expanded_words)
+        # expanded_words.append(x.replace("@you", "@u"))
+    # utterance = ' '.join(expanded_words)
+
+    # ADDED: if there are any utterances (@u) replace them with what is in the [: ] after the @u
+    # later on everything between [...] is deleted
+    pattern1 = r"@u \[: (.*?)]"
+    pattern2 = r"\b\w*@u\w*\b"
+
+    news = re.findall(pattern1, utterance)
+    olds = re.findall(pattern2, utterance)
+
+    if len(news) == len(olds):
+        for new, old in zip(news, olds):
+            if "x@n" in new:
+                utterance = utterance.replace(old, "")
+            else:
+                utterance = utterance.replace(old, new)
+
 
     # +... Trailing off pause (speaker forgets about what is about to say)
     unfilled_pauses = ["(..)", "(...)", "+..."]
@@ -136,14 +160,6 @@ def preprocess_line(utterance, mask_pauses, remove_repetitions, remove_masks):
     for regex in r:
         utterance = utterance.replace(regex, "")
 
-    # TODO: (th) them -> them or -> th them
-    special_characters = ['(.)', '[/]', '[//]', '‡', 'xxx', '+< ', '„', '+', '"" /..""', '+"/.', '+"', '+/?', '+//.',
-                          '+//?', '[]', '<>', '_', '-', '^', ':', 'www .', '*PAR', '+/', '@o', '<', '>',
-                          '//..', '//', '/..', '/', '"', 'ʌ', '..?', '0.', '0 .', '"" /.', ')', '(', "@u", "@si", "@k",
-                          "@n", "$n", "$co", "$adj", "$on", "$v", "@l", 'æ', 'é', 'ð', 'ü', 'ŋ', 'ɑ', 'ɒ', 'ɔ', 'ə',
-                          'ɚ', 'ɛ', 'ɜ', 'ɝ', 'ɡ', 'ɪ', 'ɹ', 'ɾ', 'ʃ', 'ʊ', 'ʒ', 'ʔ', 'ʤ', 'ʧ', 'ː', '˞', '͡', 'θ', "@q",
-                          "@sspa", "@i", "@wp", "@sjpn", "@sdeu", "@p", "@sfra"]
-
     # Remove remaining special chars
     for special_character in special_characters:
 
@@ -183,6 +199,10 @@ def preprocess_line(utterance, mask_pauses, remove_repetitions, remove_masks):
     for regex in r:
         utterance = utterance.replace(regex, "")
 
+    # remove extra spaces
+    utterance = utterance.lstrip().rstrip().lower().replace("[]", "").replace("]", "")
+    utterance = re.sub(' +|\t', ' ', utterance)
+    utterance = re.sub(' ,', ',', utterance)
     return utterance
 
 
@@ -225,8 +245,8 @@ if __name__ == "__main__":
 
     preprocessed_df = preprocess_dataset("data_broca.csv", True, False, True)
     df = make_sentences_df(preprocessed_df)
-    df.to_csv("data_broca_preprocessed.csv")
+    df.to_csv("test1.csv")
 
     preprocessed_df = preprocess_dataset("data_control.csv", True, False, True)
     df = make_sentences_df(preprocessed_df)
-    df.to_csv("data_control_preprocessed.csv")
+    df.to_csv("test2.csv")

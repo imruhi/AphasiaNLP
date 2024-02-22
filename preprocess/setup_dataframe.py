@@ -109,7 +109,9 @@ def main():
 
     csv_filename1 = "data_broca.csv"
     csv_filename2 = "data_control.csv"
+    # get all broca only patients from PWA dataset
     cha_txt_files_to_csv(data_dir1, csv_filename1, fnames)
+    # get all files from the control dataset
     cha_txt_files_to_csv(data_dir2, csv_filename2)
 
 
