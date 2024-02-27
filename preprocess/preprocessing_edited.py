@@ -1,19 +1,18 @@
 import pandas as pd
 import re
-import contractions
 import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-
 # TODO: (th) them -> them or -> th them
 special_characters = ['(.)', '[/]', '[//]', '‡', 'xxx', '+< ', '„', '+', '"" /..""', '+"/.', '+"', '+/?', '+//.',
-                        '+//?', '[]', '<>', '_', '-', '^', ':', 'www .', '*PAR', '+/', '@o', '<', '>',
-                        '//..', '//', '/..', '/', '"', 'ʌ', '..?', '0.', '0 .', '"" /.', ')', '(', "@u", "@si", "@k",
-                        "@n", "$n", "$co", "$adj", "$on", "$v", "@l", 'æ', 'é', 'ð', 'ü', 'ŋ', 'ɑ', 'ɒ', 'ɔ', 'ə',
-                        'ɚ', 'ɛ', 'ɜ', 'ɝ', 'ɡ', 'ɪ', 'ɹ', 'ɾ', 'ʃ', 'ʊ', 'ʒ', 'ʔ', 'ʤ', 'ʧ', 'ː', '˞', '͡', 'θ', "@q",
-                        "@sspa", "@i", "@wp", "@sjpn", "@sdeu", "@p", "@sfra"]
-
+                      '+//?', '[]', '<>', '_', '-', '^', ':', 'www .', '*PAR', '+/', '@o', '<', '>',
+                      '//..', '//', '/..', '/', '"', 'ʌ', '..?', '0.', '0 .', '"" /.', ')', '(', "@u", "@si", "@k",
+                      "@n", "$n", "$co", "$adj", "$on", "$v", "@l", 'æ', 'é', 'ð', 'ü', 'ŋ', 'ɑ', 'ɒ', 'ɔ', 'ə',
+                      'ɚ', 'ɛ', 'ɜ', 'ɝ', 'ɡ', 'ɪ', 'ɹ', 'ɾ', 'ʃ', 'ʊ', 'ʒ', 'ʔ', 'ʤ', 'ʧ', 'ː', '˞', '͡', 'θ', "@q",
+                      "@sspa", "@i", "@wp", "@sjpn", "@sdeu", "@p", "@sfra", "&"]
+ipa = ['æ', 'é', 'ð', 'ü', 'ŋ', 'ɑ', 'ɒ', 'ɔ', 'ə', 'ɚ', 'ɛ', 'ɜ', 'ɝ', 'ɡ', 'ɪ', 'ɹ', 'ɾ', 'ʃ', 'ʊ', 'ʒ', 'ʔ', 'ʤ',
+       'ʧ', 'ː', '˞', '͡', 'θ', ]
 def contains_whitespace(string):
     """
     Check if string contains whitespace.
@@ -64,7 +63,7 @@ def make_sentences_df(input_dataset):
     for number in df['line_merge_number'].unique():
         tobe_merged_data = df.loc[(df['line_merge_number'] == number)]
         if len(tobe_merged_data) <= 1:
-            df2 = pd.concat([df2,tobe_merged_data], ignore_index=True)
+            df2 = pd.concat([df2, tobe_merged_data], ignore_index=True)
         else:
             original_text_merged = ''.join(tobe_merged_data['text'].to_list())
             processed_text_merged = ''.join(tobe_merged_data['preprocessed_text'].to_list())
@@ -90,29 +89,21 @@ def preprocess_line(utterance, mask_pauses, remove_repetitions, remove_masks):
 
     :return:
     """
-    expanded_words = []
-    # for word in utterance.split():
-        # using contractions.fix --> he's --> he is
-        # x = contractions.fix(word)
-        # EDITED: make sure @you is not included since @u means babbling
-        # expanded_words.append(x.replace("@you", "@u"))
-    # utterance = ' '.join(expanded_words)
 
-    # ADDED: if there are any utterances (@u) replace them with what is in the [: ] after the @u
-    # later on everything between [...] is deleted
-    pattern1 = r"@u \[: (.*?)]"
+    # Remove IPA
+    for special_character in ipa:
+        utterance = utterance.replace(special_character, "")
+
+    pattern1 = r"@u *\[: (.*?)]"
     pattern2 = r"\b\w*@u\w*\b"
-
     news = re.findall(pattern1, utterance)
     olds = re.findall(pattern2, utterance)
-
     if len(news) == len(olds):
         for new, old in zip(news, olds):
             if "x@n" in new:
                 utterance = utterance.replace(old, "")
             else:
                 utterance = utterance.replace(old, new)
-
 
     # +... Trailing off pause (speaker forgets about what is about to say)
     unfilled_pauses = ["(..)", "(...)", "+..."]
@@ -125,48 +116,26 @@ def preprocess_line(utterance, mask_pauses, remove_repetitions, remove_masks):
         utterance = utterance.replace(pause, "FILLERPAUSE")
 
     # Remove all actions: (e.g. &=points:picture)
-    r = re.findall(r"\W\W\w+\W\w+", utterance)
-    for regex in r:
-        if not contains_whitespace(regex):
-            utterance = utterance.replace(regex, "")
+    utterance = re.sub(r"\&\=[a-zA-Z:_0-9]+", "", utterance)
 
     # Remove all unicode errors   \W\d+\w\d+\W
-    r = re.findall(r"\W\d+\w\d+\W", utterance)
-    for regex in r:
-        if not contains_whitespace(regex):
-            utterance = utterance.replace(regex, "")
-
-    # Remove all characters that start with 2 special chars and have text succeeding it:
-    r = re.findall(r"\W\W\w+", utterance)
-    for regex in r:
-        # if regex[0] != " " and regex[1] != " ":
-        if not contains_whitespace(regex):
-            # This prevents second and first letter being a space to be removed.
-            # e.g. : ") Cinderella" removes the word Cinderella too, which we dont want.
-            utterance = utterance.replace(regex, "")
+    utterance = re.sub(r"\W\d+\w\d+\W", "", utterance)
 
     # Remove anything between [ and ]
-    r = re.findall(r"\[(.*?)\]", utterance)
-    for regex in r:
-        utterance = utterance.replace(regex, "")
+    utterance = re.sub(r"\[.*?\]", "", utterance)
 
-    # Remove anything between < and >
-    r = re.findall(r"\<(.*?)\>", utterance)
-    for regex in r:
-        utterance = utterance.replace(regex, "")
+    # Remove  < and > for repetition [/] and retracing [//]
+    utterance = re.sub(r"\<|\>", "", utterance)
 
-    # Remove anything &+
-    r = re.findall(r"\&+[a-zA-Z]+", utterance)
-    for regex in r:
-        utterance = utterance.replace(regex, "")
+    # Remove anything &+ or &* (eg &*INV)
+    utterance = re.sub(r"\&\+[a-zA-Z]+", "", utterance)
+    utterance = re.sub(r"\&\*INV:[a-zA-Z_]+", "", utterance)
 
     # Remove remaining special chars
     for special_character in special_characters:
-
         # EDITED: for words such as you_know and of_course
         if special_character == '_':
             utterance = utterance.replace(special_character, " ")
-
         utterance = utterance.replace(special_character, "")
 
     utterance = re.sub(' +', ' ', utterance)
@@ -186,23 +155,16 @@ def preprocess_line(utterance, mask_pauses, remove_repetitions, remove_masks):
     if remove_masks:
         utterance = utterance.replace("<mask>", "")
 
-    # Removes stuttering and bigram stuttering
-    # if remove_repetitions:
-    #    utterance = remove_all_repetitions(utterance)
-
-    utterance = re.sub(' +', ' ', utterance) # Remove final whitespaces (e.g. double space)
-    # EDITED: remove trailing whitespaces before punctuation
+    # Remove final whitespaces (e.g. double space)
+    utterance = re.sub(' +', ' ', utterance)
+    # Remove trailing whitespaces before punctuation
     utterance = re.sub(r'\s+([?.!"])', r'\1', utterance)
-
-    # Remove anything between [ and ]
-    r = re.findall(r"\[(.*?)\]", utterance)
-    for regex in r:
-        utterance = utterance.replace(regex, "")
 
     # remove extra spaces
     utterance = utterance.lstrip().rstrip().lower().replace("[]", "").replace("]", "")
     utterance = re.sub(' +|\t', ' ', utterance)
     utterance = re.sub(' ,', ',', utterance)
+
     return utterance
 
 
@@ -229,7 +191,7 @@ def preprocess_dataset(input_dataset_filename, mask_pauses, remove_repetitions, 
                           "Sandwich_Other", "Sandwich_Picture", "VNT"]
 
     df = df[df.scenario.isin(selected_scenarios)]
-    df = df.loc[(df['line_information'] == "*PAR")] # get only participants
+    df = df.loc[(df['line_information'] == "*PAR")]  # get only participants
 
     preprocessed_text = []
     for text in df['text']:
@@ -242,11 +204,10 @@ def preprocess_dataset(input_dataset_filename, mask_pauses, remove_repetitions, 
 
 
 if __name__ == "__main__":
-
-    preprocessed_df = preprocess_dataset("data_broca.csv", True, False, True)
+    preprocessed_df = preprocess_dataset("data/data_broca.csv", True, False, True)
     df = make_sentences_df(preprocessed_df)
-    df.to_csv("test1.csv")
+    df.to_csv("data/preprocessed_broca.csv")
 
-    preprocessed_df = preprocess_dataset("data_control.csv", True, False, True)
+    preprocessed_df = preprocess_dataset("data/data_control.csv", True, False, True)
     df = make_sentences_df(preprocessed_df)
-    df.to_csv("test2.csv")
+    df.to_csv("data/preprocessed_control.csv")
