@@ -4,8 +4,13 @@ import numpy as np
 import pandas as pd
 from canonical_sents import get_canonical_sentences
 import os
+from datasets import load_dataset
+from nltk.tokenize import sent_tokenize
+import re
+from preprocess import preprocess, postprocess
 
 nlp = spacy.load("en_core_web_sm")
+ds = load_dataset("imdb")
 
 
 def aphasic_speech(text, doc):
@@ -66,30 +71,41 @@ def aphasic_speech(text, doc):
     return aphasic_utt
 
 
-def augment(filepath, save_path, include_canonical=False):
-    texts = pd.read_csv(filepath).reset_index()
-    sentences = texts["preprocessed_text"]
-    n1 = len(sentences)
+def misra_augment(save_path, include_canonical=False):
+    texts = ds["train"]["text"]
+    sents = []
+
+    for text in texts:
+        t = re.sub(r'\<.*?\>', " ", text)
+        sentences = sent_tokenize(t)
+        for sent in sentences:
+            sent = preprocess(sent)
+            sents.append(" ".join(sent.split()))
+
+    broca_ds = sents[500:1000]
+    control_ds = sents[1000:1500]
 
     print("Augmenting data")
 
-    if os.path.isfile(save_path):
-        df = pd.read_csv(save_path).reset_index()
-        print("Data augment exists")
-        n2 = len(df["preprocessed_text"])
+    augmented_sentences = []
+    control_sentences = []
 
-    else:
-        if include_canonical:
-            sentences = get_canonical_sentences(sentences, "canonical.csv")
-            n2 = len(sentences)
-            print(f"Canonical sentences in data: {n2 / n1}")
+    for x in broca_ds:
+        broca_sentence = aphasic_speech(x, nlp(x))
+        if isinstance(broca_sentence, str):
+            broca_sentence = postprocess(broca_sentence)
+            if broca_sentence:
+                augmented_sentences.append(broca_sentence)
 
-        augmented_sentences = [aphasic_speech(x, nlp(x)) for x in sentences]
-        augmented_sentences = [x.capitalize() for x in augmented_sentences if x is not None and x != '']
-        n2 = len(augmented_sentences)
-        df = pd.DataFrame({"preprocessed_text": augmented_sentences, "label": 1})
-        df.to_csv(save_path, index=False)
+    for x in control_ds:
+        control_sentence = postprocess(x)
+        if control_sentence:
+            control_sentences.append(control_sentence)
 
-    print(f"Sentences retained after augmentation: {n2 / n1}")
+    broca_data = pd.DataFrame(data={"modified": augmented_sentences, "label": [1] * len(augmented_sentences)})
+    control_data = pd.DataFrame(data={"modified": control_sentences, "label": [0] * len(control_sentences)})
+    data_full_scenario = pd.concat([broca_data, control_data], ignore_index=True)
+    data_full_scenario = data_full_scenario.sample(frac=1).reset_index(drop=True)
+    data_full_scenario.to_csv(save_path, sep=",", index=False)
 
-
+    print(f"Sentences retained after augmentation: {len(sents) / len(augmented_sentences)}")
