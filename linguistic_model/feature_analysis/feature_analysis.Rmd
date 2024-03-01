@@ -6,29 +6,35 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-data <- read.csv("~/Uni/Master thesis/linguistic_model/outputs/C-NNLA_output.csv")
+data <- read.csv("~/Uni/Master thesis/linguistic_model/clan_outputs/C-NNLA_output.csv")
 head(data)
 data <- na.omit(data)
-lens <- read.csv("~/Uni/Master thesis/linguistic_model/lens.csv")
+lens <- read.csv("~/Uni/Master thesis/linguistic_model/clan_outputs/lens.csv")
+library(fitdistrplus)
 ```
 
 ```{r}
 par(mfrow=c(1,2), cex=0.5)
 
 # sentence length
-x = log(lens$length.of.sentence, base = exp(1))
-max(lens$length.of.sentence)
-h <- hist(x, breaks=10)
+x = lens$length.of.sentence
+h <- hist(x, breaks=30)
 xfit<-seq(min(x),max(x),length=40)
 mean(x)
 sd(x)
+min(x)
+max(x)
 yfit<-dnorm(xfit,mean=mean(x),sd=sd(x))
 yfit <- yfit*diff(h$mids[1:2])*length(x)
 
 lines(xfit, yfit, col="blue", lwd=2)
 
+# gamma distr
 plot(density(x))
-curve(dexp(x, rate = 0.4), col = 2, lty = 2, lwd = 2, add = TRUE)
+# curve(dexp(x, rate = 0.4), col = 2, lty = 2, lwd = 2, add = TRUE)
+fit.gamma = fitdist(x, "gamma")
+plot(fit.gamma)
+fit.gamma
 ```
 
 ```{r}
@@ -45,11 +51,16 @@ yfit <- yfit*diff(h$mids[1:2])*length(x)
 
 lines(xfit, yfit, col="blue", lwd=2)
 
+# gamma distr
 plot(density(x))
+curve(dexp(x, rate = 0.4), col = 2, lty = 2, lwd = 2, add = TRUE)
+fit.gamma = fitdist(x, "gamma")
+plot(fit.gamma)
+fit.gamma
 ```
 
 ```{r}
-par(mfrow=c(2,2), cex=0.5)
+par(mfrow=c(1,2), cex=0.5)
 
 # %n/all words
 x = data$X..Nouns.all.words
@@ -63,17 +74,9 @@ yfit <- yfit*diff(h$mids[1:2])*length(x)
 lines(xfit, yfit, col="blue", lwd=2)
 
 plot(density(x))
-
-# nouns
-y = data$Nouns
-h <- hist(y, breaks=20)
-xfit<-seq(min(y),max(y),length=40)
-yfit<-dnorm(xfit,mean=mean(y),sd=sd(y))
-yfit <- yfit*diff(h$mids[1:2])*length(y)
-
-lines(xfit, yfit, col="blue", lwd=2)
-
-plot(density(y))
+fit.gamma = fitdist(x, "gamma")
+plot(fit.gamma)
+fit.gamma
 ```
 
 ```{r}
@@ -92,17 +95,9 @@ max(x)
 lines(xfit, yfit, col="blue", lwd=2)
 
 plot(density(x))
-
-# verbs
-y = data$Verbs
-h <- hist(y, breaks=20)
-xfit<-seq(min(y),max(y),length=40)
-yfit<-dnorm(xfit,mean=mean(y),sd=sd(y))
-yfit <- yfit*diff(h$mids[1:2])*length(y)
-
-lines(xfit, yfit, col="blue", lwd=2)
-
-plot(density(y))
+fit.gamma = fitdist(x, "gamma")
+plot(fit.gamma)
+fit.gamma
 ```
 
 ```{r}
@@ -121,6 +116,7 @@ min(x)
 max(x)
 plot(density(x))
 curve(dexp(x, rate = 0.025), col = 2, lty = 2, lwd = 2, add = TRUE)
+
 ```
 
 ```{r}
@@ -139,26 +135,9 @@ min(x)
 max(x)
 plot(density(x))
 curve(dexp(x, rate = 0.025), col = 2, lty = 2, lwd = 2, add = TRUE)
-```
-
-```{r}
-par(mfrow=c(1,2), cex=0.5)
-
-# MLU in words (not reliable)
-x = data$MLU.Words
-h <- hist(x, breaks=20)
-xfit<-seq(min(x),max(x),length=40)
-yfit<-dnorm(xfit,mean=mean(x),sd=sd(x))
-yfit <- yfit*diff(h$mids[1:2])*length(x)
-mean(x)
-sd(x)
-min(x)
-max(x)
-lines(xfit, yfit, col="blue", lwd=2)
-
-plot(density(x))
 
 ```
+
 
 ```{r}
 par(mfrow=c(1,2), cex=0.5)
@@ -176,6 +155,7 @@ min(x)
 max(x)
 plot(density(x))
 curve(dexp(x, rate = 0.025), col = 2, lty = 2, lwd = 2, add = TRUE)
+
 ```
 
 ```{r}
