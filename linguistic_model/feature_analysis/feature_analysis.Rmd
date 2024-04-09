@@ -11,6 +11,9 @@ head(data)
 data <- na.omit(data)
 lens <- read.csv("~/Uni/Master thesis/linguistic_model/clan_outputs/lens.csv")
 library(fitdistrplus)
+data1 <- read.csv("~/Uni/Master thesis/linguistic_model/clan_outputs/eval_output.csv")
+control_data <- read.csv("~/Uni/Master thesis/linguistic_model/clan_outputs/C-NNLA_all_output.csv")
+control_data <- control_data[control_data$label == 0,]
 ```
 
 ```{r}
@@ -18,6 +21,7 @@ par(mfrow=c(1,2), cex=0.5)
 
 # sentence length
 x = lens$length.of.sentence
+x = x[x>=5]
 h <- hist(x, breaks=30)
 xfit<-seq(min(x),max(x),length=40)
 mean(x)
@@ -41,6 +45,28 @@ fit.gamma
 par(mfrow=c(1,2), cex=0.5)
 
 # n/v
+x = data$noun.verb
+h <- hist(x, breaks=20)
+xfit<-seq(min(x),max(x),length=40)
+mean(x)
+sd(x)
+yfit<-dnorm(xfit,mean=mean(x),sd=sd(x))
+yfit <- yfit*diff(h$mids[1:2])*length(x)
+
+lines(xfit, yfit, col="blue", lwd=2)
+
+# gamma distr
+plot(density(x))
+curve(dexp(x, rate = 0.4), col = 2, lty = 2, lwd = 2, add = TRUE)
+fit.gamma = fitdist(x, "gamma")
+plot(fit.gamma)
+fit.gamma
+```
+
+```{r}
+par(mfrow=c(1,2), cex=0.5)
+
+# n/v control
 x = data$noun.verb
 h <- hist(x, breaks=20)
 xfit<-seq(min(x),max(x),length=40)
@@ -174,4 +200,110 @@ min(x)
 max(x)
 plot(density(x))
 curve(dexp(x, rate = 0.025), col = 2, lty = 2, lwd = 2, add = TRUE)
+```
+
+```{r}
+par(mfrow=c(1,2), cex=0.5)
+
+# repetition
+x = data1$repetition/data$Total.Words
+x = x[x<0.2]
+h <- hist(x, breaks=30)
+xfit<-seq(min(x),max(x),length=40)
+mean(x)
+sd(x)
+min(x)
+max(x)
+yfit<-dnorm(xfit,mean=mean(x),sd=sd(x))
+yfit <- yfit*diff(h$mids[1:2])*length(x)
+
+lines(xfit, yfit, col="blue", lwd=2)
+
+# gamma distr
+plot(density(x))
+# curve(dexp(x, rate = 0.4), col = 2, lty = 2, lwd = 2, add = TRUE)
+fit.gamma = fitdist(x, "gamma")
+plot(fit.gamma)
+fit.gamma
+```
+
+```{r}
+par(mfrow=c(1,2), cex=0.5)
+
+# 3rd person present tense markers
+x = data$open.closed
+x = x[x<=5]
+h <- hist(x, breaks=100)
+xfit<-seq(min(x),max(x),length=40)
+yfit<-dnorm(xfit,mean=mean(x),sd=sd(x))
+yfit <- yfit*diff(h$mids[1:2])*length(x)
+lines(xfit, yfit, col="blue", lwd=2)
+mean(x)
+sd(x)
+min(x)
+max(x)
+plot(density(x))
+fit.gamma = fitdist(x, "gamma")
+plot(fit.gamma)
+fit.gamma
+```
+
+```{r}
+par(mfrow=c(1,2), cex=0.5)
+
+# nouns % (control)
+x = control_data$X..Nouns.all.words
+h <- hist(x, breaks=100)
+xfit<-seq(min(x),max(x),length=40)
+yfit<-dnorm(xfit,mean=mean(x),sd=sd(x))
+yfit <- yfit*diff(h$mids[1:2])*length(x)
+lines(xfit, yfit, col="blue", lwd=2)
+mean(x)
+sd(x)
+min(x)
+max(x)
+plot(density(x))
+fit.gamma = fitdist(x, "gamma")
+plot(fit.gamma)
+fit.gamma
+```
+
+```{r}
+par(mfrow=c(1,2), cex=0.5)
+
+# verb % (control)
+x = control_data$X..Verbs.all.words
+h <- hist(x, breaks=100)
+xfit<-seq(min(x),max(x),length=40)
+yfit<-dnorm(xfit,mean=mean(x),sd=sd(x))
+yfit <- yfit*diff(h$mids[1:2])*length(x)
+lines(xfit, yfit, col="blue", lwd=2)
+mean(x)
+sd(x)
+min(x)
+max(x)
+plot(density(x))
+fit.gamma = fitdist(x, "gamma")
+plot(fit.gamma)
+fit.gamma
+```
+
+```{r}
+par(mfrow=c(1,2), cex=0.5)
+
+# open closed (control)
+x = control_data$open.closed
+h <- hist(x, breaks=100)
+xfit<-seq(min(x),max(x),length=40)
+yfit<-dnorm(xfit,mean=mean(x),sd=sd(x))
+yfit <- yfit*diff(h$mids[1:2])*length(x)
+lines(xfit, yfit, col="blue", lwd=2)
+mean(x)
+sd(x)
+min(x)
+max(x)
+plot(density(x))
+fit.gamma = fitdist(x, "gamma")
+plot(fit.gamma)
+fit.gamma
 ```
