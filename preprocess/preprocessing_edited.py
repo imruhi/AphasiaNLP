@@ -1,10 +1,10 @@
 import pandas as pd
 import re
 import warnings
-
+import contractions
+from get_repetition import get_single_repetitions
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-# TODO: (th) them -> them or -> th them
 special_characters = ['(.)', '[/]', '[//]', '‡', 'xxx', '+< ', '„', '+', '"" /..""', '+"/.', '+"', '+/?', '+//.',
                       '+//?', '[]', '<>', '_', '-', '^', ':', 'www .', '*PAR', '+/', '@o', '<', '>',
                       '//..', '//', '/..', '/', '"', 'ʌ', '..?', '0.', '0 .', '"" /.', ')', '(', "@u", "@si", "@k",
@@ -13,6 +13,9 @@ special_characters = ['(.)', '[/]', '[//]', '‡', 'xxx', '+< ', '„', '+', '""
                       "@sspa", "@i", "@wp", "@sjpn", "@sdeu", "@p", "@sfra", "&"]
 ipa = ['æ', 'é', 'ð', 'ü', 'ŋ', 'ɑ', 'ɒ', 'ɔ', 'ə', 'ɚ', 'ɛ', 'ɜ', 'ɝ', 'ɡ', 'ɪ', 'ɹ', 'ɾ', 'ʃ', 'ʊ', 'ʒ', 'ʔ', 'ʤ',
        'ʧ', 'ː', '˞', '͡', 'θ', ]
+
+repetition_df = pd.DataFrame({"word": [], "count": [], "file": []})
+
 def contains_whitespace(string):
     """
     Check if string contains whitespace.
@@ -64,6 +67,7 @@ def make_sentences_df(input_dataset):
         tobe_merged_data = df.loc[(df['line_merge_number'] == number)]
         if len(tobe_merged_data) <= 1:
             df2 = pd.concat([df2, tobe_merged_data], ignore_index=True)
+            # print(df2["repetition"])
         else:
             original_text_merged = ''.join(tobe_merged_data['text'].to_list())
             processed_text_merged = ''.join(tobe_merged_data['preprocessed_text'].to_list())
@@ -72,15 +76,18 @@ def make_sentences_df(input_dataset):
                            'text': original_text_merged,
                            'source_file': tobe_merged_data['source_file'].values[0],
                            'preprocessed_text': processed_text_merged,
+                           # 'repetition': tobe_merged_data["repetition"],
                            'line_merge_number': None
                            }
                 df2 = df2.append(new_row, ignore_index=True)
+                # print(tobe_merged_data["repetition"])
 
     df2 = df2.drop(columns=['text', 'line_merge_number'])
+
     return df2
 
 
-def preprocess_line(utterance, mask_pauses, remove_repetitions, remove_masks):
+def preprocess_line(utterance, mask_pauses, remove_repetitions, remove_masks, get_repetition, source_file):
     """
     Cleans text using regular expressions and custom functions.
     Also creates masks for filled and unfilled pauses.
@@ -89,6 +96,14 @@ def preprocess_line(utterance, mask_pauses, remove_repetitions, remove_masks):
 
     :return:
     """
+
+    expanded_words = []
+    for word in utterance.split():
+        # using contractions.fix --> he's --> he is
+        x = contractions.fix(word)
+        # EDITED: make sure @you is not included since @u means babbling
+        expanded_words.append(x.replace("@you", "@u"))
+    utterance = ' '.join(expanded_words)
 
     # Remove IPA
     for special_character in ipa:
@@ -165,13 +180,25 @@ def preprocess_line(utterance, mask_pauses, remove_repetitions, remove_masks):
     utterance = re.sub(' +|\t', ' ', utterance)
     utterance = re.sub(' ,', ',', utterance)
 
-    return utterance
+    # ADDED
+    repetition = None
+    if get_repetition:
+        repetition = get_single_repetitions(utterance)
+        if repetition is not None:
+            repetition = pd.DataFrame.from_dict(repetition, orient='index').reset_index()
+            repetition = repetition.rename(columns={'index': 'word', 0: 'count'})
+            repetition["file"] = source_file
+
+            global repetition_df
+            repetition_df = pd.concat([repetition_df, repetition])
+
+    return utterance, repetition
 
 
-def preprocess_dataset(input_dataset_filename, mask_pauses, remove_repetitions, remove_masks):
+def preprocess_dataset(input_dataset_filename, mask_pauses, remove_repetitions, remove_masks, get_repetition):
     df = pd.read_csv(input_dataset_filename, encoding='utf8')
     df = df.dropna()
-
+    # repetition = pd.DataFrame()
     speaker_status = []  # Add speaker status / 1 for interviewer, 2 for participant
     current_status = 0
     for line_information in df['line_information']:
@@ -194,20 +221,52 @@ def preprocess_dataset(input_dataset_filename, mask_pauses, remove_repetitions, 
     df = df.loc[(df['line_information'] == "*PAR")]  # get only participants
 
     preprocessed_text = []
-    for text in df['text']:
-        preprocessed_line = preprocess_line(text, mask_pauses, remove_repetitions, remove_masks)
+    for index, row in df.iterrows():
+        preprocessed_line, rep = preprocess_line(row["text"], mask_pauses, remove_repetitions, remove_masks,
+                                                 get_repetition, row["source_file"])
+        # repetition = pd.concat([repetition, rep])
+        # repetition = repetition.reset_index(drop=True)
         preprocessed_text.append(preprocessed_line)
-
+    # print(repetition)
     df['original_text'] = df['text']
     df['preprocessed_text'] = preprocessed_text
+    # df['repetition'] = repetition
     return df
 
 
 if __name__ == "__main__":
-    preprocessed_df = preprocess_dataset("data/data_broca.csv", True, False, True)
+    preprocessed_df = preprocess_dataset("data/data_broca.csv", True, False,
+                                         True, True)
     df = make_sentences_df(preprocessed_df)
     df.to_csv("data/preprocessed_broca.csv")
+    print(repetition_df)
+    repetition_df.to_csv("data/repetition_broca.csv")
 
-    preprocessed_df = preprocess_dataset("data/data_control.csv", True, False, True)
-    df = make_sentences_df(preprocessed_df)
-    df.to_csv("data/preprocessed_control.csv")
+    # preprocessed_df = preprocess_dataset("data/data_control.csv", True, False, True)
+    # df = make_sentences_df(preprocessed_df)
+    # df.to_csv("data/preprocessed_control.csv")
+
+    # preprocessed_df = preprocess_dataset("data/data_control.csv", False, False, False)
+    # df = make_sentences_df(preprocessed_df)
+    # df.to_csv("data/preprocessed_control_pause.csv")
+    # print("Control done")
+
+    # preprocessed_df = preprocess_dataset("data/data_anomic.csv", False, False, False)
+    # df = make_sentences_df(preprocessed_df)
+    # df.to_csv("data/preprocessed_anomic_pause.csv")
+    # print("Anomic done")
+    #
+    # preprocessed_df = preprocess_dataset("data/data_conduction.csv", False, False, False)
+    # df = make_sentences_df(preprocessed_df)
+    # df.to_csv("data/preprocessed_conduction_pause.csv")
+    # print("Conduction done")
+    #
+    # preprocessed_df = preprocess_dataset("data/data_transsensory.csv", False, False, False)
+    # df = make_sentences_df(preprocessed_df)
+    # df.to_csv("data/preprocessed_transsensory_pause.csv")
+    # print("Transsensory done")
+    #
+    # preprocessed_df = preprocess_dataset("data/data_wernicke.csv", False, False, False)
+    # df = make_sentences_df(preprocessed_df)
+    # df.to_csv("data/preprocessed_wernicke_pause.csv")
+    # print("Wernicke done")
