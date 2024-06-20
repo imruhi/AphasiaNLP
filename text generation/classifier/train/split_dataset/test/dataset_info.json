@@ -1,0 +1,50 @@
+{
+  "citation": "",
+  "description": "",
+  "features": {
+    "Unnamed: 0.1": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "Unnamed: 0": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "scenario": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "source_file": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "original_text": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "preprocessed_text": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "label": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "input_ids": {
+      "feature": {
+        "dtype": "int32",
+        "_type": "Value"
+      },
+      "_type": "Sequence"
+    },
+    "attention_mask": {
+      "feature": {
+        "dtype": "int8",
+        "_type": "Value"
+      },
+      "_type": "Sequence"
+    }
+  },
+  "homepage": "",
+  "license": ""
+}
