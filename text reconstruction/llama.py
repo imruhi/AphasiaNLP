@@ -19,9 +19,12 @@ print("\n##### Starting code #####\n")
 datasets.disable_progress_bar()
         
 model = "meta-llama/Llama-2-7b-hf"
-data_fp = "data1.csv"
+data_fp = "data3.csv"
+save_fp = "trained-model3"
 MODEL_NAME = model
 access_token = "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"
+extra_data = "added_data3.csv"
+
 
 bnb_config = BitsAndBytesConfig(
    load_in_4bit=True,
@@ -97,13 +100,20 @@ dataset["test"] = dataset["test"].map(generate_and_tokenize_prompt, batched=True
 print("\n##### Dataset #####\n", dataset,'\n')
 print(dataset["train"][0])
 
+# Extra train dataset (domain specific info)
+print("\n##### Adding to dataset #####\n")
+data2 = pd.read_csv(extra_data).drop("Unnamed: 0", axis=1)
+dataset['train'] = Dataset.from_pandas(pd.concat([dataset['train'].to_pandas(), data2]))
+print("\n##### Dataset #####\n", dataset,'\n')
+print(dataset["train"][0])
+
 print("\n##### Setting up train args #####\n")
 training_args = transformers.TrainingArguments(
     overwrite_output_dir=True, # Overwrite the content of the output directory
     per_device_train_batch_size=4,  # Batch size for training
     per_device_eval_batch_size=4,  # Batch size for evaluation
     gradient_accumulation_steps=1,
-    num_train_epochs=2,
+    num_train_epochs=3,
     learning_rate=2e-4,
     weight_decay=0.001,  # Weight decay
     fp16=False,
@@ -144,4 +154,4 @@ print("\nStart: ", str(start_time), "End: ", str(end_time), "\n")
 training_time = end_time - start_time  # Calculate total training time
 print(f"\n##### Training completed in {training_time}. #####\n")
 print("\n##### Saving model #####\n")
-model.save_pretrained("trained-model1")
+model.save_pretrained(save_fp)
