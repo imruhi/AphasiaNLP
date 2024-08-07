@@ -19,12 +19,12 @@ print("\n##### Starting code #####\n")
 datasets.disable_progress_bar()
         
 model = "meta-llama/Llama-2-7b-hf"
-data_fp = "data3.csv"
-save_fp = "trained-model3"
+data_fp = "data/data3.csv"
+save_fp = "trained-model3-2"
+train_epochs = 2
 MODEL_NAME = model
 access_token = "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"
-extra_data = "added_data3.csv"
-
+max_new_tokens = 45
 
 bnb_config = BitsAndBytesConfig(
    load_in_4bit=True,
@@ -42,7 +42,8 @@ model = AutoModelForCausalLM.from_pretrained(
     quantization_config=bnb_config)
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-tokenizer.pad_token = tokenizer.eos_token
+tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+model.resize_token_embeddings(len(tokenizer))
 
 model = prepare_model_for_kbit_training(model)
 
@@ -64,10 +65,10 @@ def get_last_layer_linears(model):
     return names
     
 config = LoraConfig(
-    r=64,
-    lora_alpha=16,
+    r=16,
+    lora_alpha=32,
     target_modules=get_last_layer_linears(model),
-    lora_dropout=0.1,
+    lora_dropout=0.05,
     bias="none",
     task_type="CAUSAL_LM"
 )
@@ -75,9 +76,9 @@ config = LoraConfig(
 model = get_peft_model(model, config)
 
 generation_config = model.generation_config
-generation_config.max_new_tokens = 20
-generation_config.temperature = 0.75
-generation_config.top_p = 0.75
+generation_config.max_new_tokens = max_new_tokens
+generation_config.temperature = 0.7
+generation_config.top_p = 0.7
 generation_config.num_return_sequences = 1
 generation_config.pad_token_id = tokenizer.eos_token_id
 generation_config.eos_token_id = tokenizer.eos_token_id
@@ -100,29 +101,22 @@ dataset["test"] = dataset["test"].map(generate_and_tokenize_prompt, batched=True
 print("\n##### Dataset #####\n", dataset,'\n')
 print(dataset["train"][0])
 
-# Extra train dataset (domain specific info)
-print("\n##### Adding to dataset #####\n")
-data2 = pd.read_csv(extra_data).drop("Unnamed: 0", axis=1)
-dataset['train'] = Dataset.from_pandas(pd.concat([dataset['train'].to_pandas(), data2]))
-print("\n##### Dataset #####\n", dataset,'\n')
-print(dataset["train"][0])
-
 print("\n##### Setting up train args #####\n")
 training_args = transformers.TrainingArguments(
     overwrite_output_dir=True, # Overwrite the content of the output directory
     per_device_train_batch_size=4,  # Batch size for training
     per_device_eval_batch_size=4,  # Batch size for evaluation
-    gradient_accumulation_steps=1,
-    num_train_epochs=3,
-    learning_rate=2e-4,
+    gradient_accumulation_steps=4,
+    num_train_epochs=train_epochs,
+    learning_rate=1e-4,
     weight_decay=0.001,  # Weight decay
     fp16=False,
     bf16=True,
-    output_dir="finetune",
+    output_dir=save_fp+"/finetune",
     optim="paged_adamw_32bit",
     lr_scheduler_type="constant",
     warmup_ratio=0.03,
-    logging_dir='./logs',
+    logging_dir=save_fp+'/logs',
     logging_strategy="steps",
     logging_steps=200,
     save_strategy="steps",
@@ -144,6 +138,7 @@ trainer = transformers.Trainer(
     data_collator=transformers.DataCollatorForLanguageModeling(tokenizer, mlm=False),
 )
 model.config.use_cache = False
+model.gradient_checkpointing_enable()
 print("\n##### Base model #####\n")
 print(model)
 print("\n##### Training model #####\n")
@@ -154,4 +149,4 @@ print("\nStart: ", str(start_time), "End: ", str(end_time), "\n")
 training_time = end_time - start_time  # Calculate total training time
 print(f"\n##### Training completed in {training_time}. #####\n")
 print("\n##### Saving model #####\n")
-model.save_pretrained(save_fp)
+model.save_pretrained(save_fp+"/best-model")
